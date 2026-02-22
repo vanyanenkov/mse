@@ -1,65 +1,65 @@
+#Task 2.2.4
+
 from ultralytics import YOLO
 from pathlib import Path
-import yaml
+from app.core.callbacks import create_early_stopping_callback
+from app.core.yaml_generator import generate_coco8_yaml
 
 
-def create_test_dataset_config():
-
-    config_dir = Path("configs")
-    config_dir.mkdir(exist_ok=True)
-
-    dataset_config = {
-        'path': './coco8',
-        'train': 'images/train',
-        'val': 'images/val',
-        'test': 'images/test',
-        'names': {0: 'person', 1: 'bicycle', 2: 'car', 3: 'motorcycle', 4: 'airplane',
-                  5: 'bus', 6: 'train', 7: 'truck', 8: 'boat', 9: 'traffic light'}
-    }
-
-    config_path = config_dir / "test_dataset.yaml"
-    with open(config_path, 'w') as f:
-        yaml.dump(dataset_config, f, default_flow_style=False)
-
-    return str(config_path)
-
-
-def test_training():
-
-    print("обучение YOLO...")
+def test_training_with_callback():
 
     try:
         model = YOLO("yolov8n.pt")
-        print("ОК")
+        print("Модель загружена")
+        dataset_path = Path("coco8.yaml")
+        if not dataset_path.exists():
+            print("Создаем тестовый конфиг датасета")
+            dataset_path = Path(generate_coco8_yaml())
+        print(f"Датасет: {dataset_path}")
 
-        dataset_path = create_test_dataset_config()
-
-
-        results = model.train(
-            data=dataset_path,
-            epochs=1,
-            imgsz=160,
-            batch=4,
-            device='cpu',
-            verbose=True,
-            project='runs/detect',
-            name='test_train',
-            exist_ok=True,
+        # коллбек ранней остановки
+        early_stopping = create_early_stopping_callback(
+            patience=3,
+            min_delta=0.15,
+            min_epochs=5
         )
 
-        print("\nОбучение завершено")
-        print(f"Результаты : runs/detect/test_train")
+        model.add_callback('on_fit_epoch_end', early_stopping)
 
-        print("\nРезультаты:")
-        print(f"   - Метрики: {results}")
+        results = model.train(
+            data=str(dataset_path),
+            epochs=20,
+            imgsz=160,
+            batch=8,
+            device='cpu',
+            project='runs/detect',
+            name='test_early_stopping',
+            exist_ok=True,
+            verbose=True,
+            plots=True,
+        )
+        print("Обучение завершено")
+
+        print("\nРезультаты в: runs/detect/test_early_stopping")
+
+        # Проверяем, сработал ли early stopping
+        import csv
+        csv_path = Path("runs/detect/test_early_stopping/results.csv")
+        if csv_path.exists():
+            with open(csv_path, 'r') as f:
+                reader = csv.reader(f)
+                rows = list(reader)
+                last_epoch = int(rows[-1][0]) if len(rows) > 1 else 0
+                print(f"обучено эпох: {last_epoch + 1}/20")
+                if last_epoch + 1 < 20:
+                    print("early stopping")
 
         return True
 
     except Exception as e:
-        print(f"\Ошибка при обучении: {e}")
+        print(f"\nОшибка: {e}")
         return False
-
-
+        
 def test_prediction():
 
 
@@ -88,7 +88,6 @@ def test_prediction():
 
 
 if __name__ == "__main__":
-    success = test_training()
+    success = test_training_with_callback()
     if success:
         test_prediction()
-    print("Тестирование завершено")
