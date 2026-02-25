@@ -4,6 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from app.api import endpoints
 
+
 app = FastAPI(
     title="AutoML YOLO API",
     description="API для автоматического подбора гиперпараметров YOLO",
