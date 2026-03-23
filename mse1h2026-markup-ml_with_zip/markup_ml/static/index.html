@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AutoML</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-logo">A</div>
+        <div>
+          <div class="brand-title">MOEVMTeam</div>
+          <div class="brand-subtitle">CV AutoML</div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a href="#dashboard" class="nav-link" data-route="dashboard">Dashboard</a>
+        <a href="#datasets" class="nav-link" data-route="datasets">Datasets</a>
+        <a href="#runs" class="nav-link" data-route="runs">Runs</a>
+        <a href="#compare" class="nav-link" data-route="compare">Compare</a>
+        <a href="#exports" class="nav-link" data-route="exports">Exports</a>
+        <a href="#settings" class="nav-link" data-route="settings">Settings</a>
+      </nav>
+    </aside>
+
+    <main class="app-main">
+      <header class="topbar">
+        <div>
+          <h1 id="page-title">Dashboard</h1>
+          <p id="page-subtitle">Обзор датасетов, запусков и результатов</p>
+        </div>
+
+        <div class="topbar-actions">
+          <button id="refreshButton" class="btn btn-secondary" type="button">Обновить</button>
+        </div>
+      </header>
+
+      <section id="app-notice"></section>
+      <section id="app-root" class="page-root"></section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "current_model": 1,
+  "total_models": 0,
+  "status": "training",
+  "current_config": {
+    "data": "coco8.yaml",
+    "epochs": 1,
+    "batch": 8,
+    "imgsz": 160,
+    "lr0": 0.01
+  },
+  "best_result": null
+}
