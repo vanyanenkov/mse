@@ -4,7 +4,6 @@ from itertools import count
 from pathlib import Path
 from typing import Any, Optional
 import shutil
-import traceback
 import zipfile
 
 import uvicorn
@@ -14,6 +13,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.core.hyperparameter_search import grid_search_params
+from app.core.orc import AutoMLOrchestrator
 from app.core.random_search_combinations import random_search_params
 
 try:
@@ -821,8 +821,9 @@ def run_training_task(
             RUN_DETAILS[run_id]["status"] = "running"
             refresh_run_summary(run_id)
 
-        append_to_run_log(run_id, "Training started (local runner)...")
-        result = run_training_trials(hyperparams_combinations)
+        append_to_run_log(run_id, "Training started...")
+        orchestrator = AutoMLOrchestrator()
+        result = orchestrator.run(hyperparams_combinations)
         print("Training finished")
 
         if run_id in RUN_DETAILS:
@@ -853,7 +854,6 @@ def run_training_task(
         error_message = f"Training error: {exc}"
         print(error_message)
         append_to_run_log(run_id, error_message)
-        append_to_run_log(run_id, traceback.format_exc())
 
         if run_id in RUN_DETAILS:
             RUN_DETAILS[run_id]["status"] = "failed"
@@ -869,71 +869,6 @@ def append_to_run_log(run_id: str, message: str):
         RUN_LOGS[run_id] = f"{current_log}\n{new_entry}"
     else:
         RUN_LOGS[run_id] = new_entry
-
-
-def run_training_trials(config_list: list[dict[str, Any]], base_model: str = "yolov8n.pt") -> list[dict[str, Any]]:
-    from ultralytics import YOLO
-
-    from app.core.callbacks import create_early_stopping_callback
-    from app.core.training_results import read_latest_epoch_and_box_loss
-
-    results: list[dict[str, Any]] = []
-
-    for trial_idx, config in enumerate(config_list):
-        model = YOLO(base_model)
-        run_name = f"trial_{trial_idx:03d}"
-        run_dir = Path("runs/detect/automl") / run_name
-
-        train_params = {
-            "data": config.get("data", "coco8.yaml"),
-            "epochs": config.get("epochs", 10),
-            "batch": config.get("batch", 16),
-            "imgsz": config.get("imgsz", 640),
-            "lr0": config.get("lr0", 0.01),
-            "project": "runs/detect/automl",
-            "name": run_name,
-            "exist_ok": True,
-            "verbose": False,
-        }
-
-        for key, value in config.items():
-            if key in {"data", "epochs", "batch", "imgsz", "lr0"}:
-                continue
-            if value is not None:
-                train_params[key] = value
-
-        early_stopping = create_early_stopping_callback()
-
-        try:
-            model.add_callback("on_fit_epoch_end", early_stopping)
-            model.train(**train_params)
-
-            metrics = None
-            try:
-                metrics = read_latest_epoch_and_box_loss(run_dir)
-            except Exception:
-                metrics = None
-
-            results.append(
-                {
-                    "trial": trial_idx,
-                    "config": config,
-                    "status": "completed",
-                    "metrics": metrics,
-                    "model_path": str((run_dir / "weights" / "best.pt").resolve()),
-                }
-            )
-        except Exception as exc:
-            results.append(
-                {
-                    "trial": trial_idx,
-                    "config": config,
-                    "status": "failed",
-                    "error": str(exc),
-                }
-            )
-
-    return results
 
 
 @app.get("/api/runs")
