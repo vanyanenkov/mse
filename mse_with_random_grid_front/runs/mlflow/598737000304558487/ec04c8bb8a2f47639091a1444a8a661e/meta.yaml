@@ -1,0 +1,14 @@
+artifact_uri: /home/vladislav/Рабочий стол/44/mse1h2026-markup-ml-main/markup_ml/runs/mlflow/598737000304558487/ec04c8bb8a2f47639091a1444a8a661e/artifacts
+end_time: 1774375991649
+entry_point_name: ''
+experiment_id: '598737000304558487'
+lifecycle_stage: active
+run_id: ec04c8bb8a2f47639091a1444a8a661e
+run_name: trial_001
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1774375925267
+status: 3
+tags: []
+user_id: vladislav

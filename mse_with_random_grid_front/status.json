@@ -1,0 +1,19 @@
+{
+  "current_model": 2,
+  "total_models": 2,
+  "status": "training",
+  "current_config": {
+    "data": "coco8.yaml",
+    "lr0": 1
+  },
+  "best_result": {
+    "trial": 0,
+    "config": {
+      "data": "coco8.yaml",
+      "lr0": 1,
+      "epochs": 2
+    },
+    "score": 0,
+    "model_path": "runs/detect/automl/trial_000/weights/best.pt"
+  }
+}
