@@ -19,39 +19,13 @@ class AutoMLOrchestrator:
         self.current_trial = 0
         self.total_trials = 0
 
-    def _update_status(self, **updates: Any):
-        if hasattr(self.status_manager, "update_status"):
-            return self.status_manager.update_status(**updates)
-
-        current_status = {}
-        if hasattr(self.status_manager, "read_status"):
-            current_status = self.status_manager.read_status() or {}
-
-        if not isinstance(current_status, dict):
-            current_status = {}
-
-        default_status = {
-            "current_model": 0,
-            "total_models": 0,
-            "status": "idle",
-            "current_config": None,
-            "best_result": None,
-        }
-        default_status.update(current_status)
-        default_status.update(updates)
-
-        if hasattr(self.status_manager, "write_status"):
-            self.status_manager.write_status(default_status)
-
-        return default_status
-
     def run_single_trial(self, config: Dict[str, Any], trial_idx: int):
 
         print(f"\n{'=' * 60}")
         print(f"Запуск попытки {trial_idx + 1}/{self.total_trials}")
         print(f"Конфигурация: {config}")
 
-        self._update_status(
+        self.status_manager.update_status(
             current_model=trial_idx + 1,
             total_models=self.total_trials,
             status="training",
@@ -107,7 +81,7 @@ class AutoMLOrchestrator:
     def run(self, config_list: List[Dict[str, Any]]):
         self.total_trials = len(config_list)
         results = []
-        self._update_status(
+        self.status_manager.update_status(
             current_model=0,
             total_models=self.total_trials,
             status="starting",
@@ -122,7 +96,7 @@ class AutoMLOrchestrator:
                 time.sleep(2)
 
         best_result = self._find_best_result(results)
-        self._update_status(
+        self.status_manager.update_status(
             current_model=self.total_trials,
             total_models=self.total_trials,
             status="completed",
