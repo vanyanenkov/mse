@@ -1409,7 +1409,7 @@ function renderRunsPage() {
                             <td>${escapeHtml(run.bestModel || "—")}</td>
                             <td>${metricValue(run.bestMap, 2)}</td>
                             <td>${escapeHtml(run.device || run.gpu || "—")}</td>
-                            <td>${escapeHtml(run.searchAlgorithm || run.search_alg || "—")}</td>
+                            <td>${escapeHtml(run.searchAlgorithm || "—")}</td>
                           </tr>
                         `
                       )
@@ -1486,7 +1486,7 @@ function renderRunOverview(detail) {
                 <tr><th>Finished</th><td>${escapeHtml(formatDateTime(detail.finishedAt))}</td></tr>
                 <tr><th>Metric</th><td>${escapeHtml(detail.targetMetric || "—")}</td></tr>
                 <tr><th>Device</th><td>${escapeHtml(detail.device || detail.gpu || "—")}</td></tr>
-                <tr><th>Search Algorithm</th><td>${escapeHtml(detail.searchAlgorithm || detail.search_alg || "—")}</td></tr>
+                <tr><th>Search Algorithm</th><td>${escapeHtml(detail.searchAlgorithm || "—")}</td></tr>
               </tbody>
             </table>
           </div>
@@ -2465,3 +2465,4 @@ if (typeof module === "object" && module.exports) {
     applyDummyStatus,
   };
 }
+
