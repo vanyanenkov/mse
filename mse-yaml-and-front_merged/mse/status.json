@@ -1,0 +1,22 @@
+{
+  "current_model": 2,
+  "total_models": 2,
+  "status": "completed",
+  "current_config": {
+    "epochs": 1,
+    "imgsz": 160,
+    "lr0": 0.02,
+    "data": "/home/vladislav/Рабочий стол/gg/mse/mse-yaml-and-front_merged/mse/uploads/datasets/ds-1_extracted/data.yaml"
+  },
+  "best_result": {
+    "trial": 0,
+    "config": {
+      "epochs": 1,
+      "imgsz": 160,
+      "lr0": 0.01,
+      "data": "/home/vladislav/Рабочий стол/gg/mse/mse-yaml-and-front_merged/mse/uploads/datasets/ds-1_extracted/data.yaml"
+    },
+    "score": 0,
+    "model_path": "runs/detect/automl/trial_000/weights/best.pt"
+  }
+}

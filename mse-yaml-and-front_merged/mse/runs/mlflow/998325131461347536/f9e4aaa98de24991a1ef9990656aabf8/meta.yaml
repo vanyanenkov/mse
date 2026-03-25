@@ -1,0 +1,14 @@
+artifact_uri: /home/vladislav/Рабочий стол/gg/mse/mse-yaml-and-front_merged/mse/runs/mlflow/998325131461347536/f9e4aaa98de24991a1ef9990656aabf8/artifacts
+end_time: 1774429853180
+entry_point_name: ''
+experiment_id: '998325131461347536'
+lifecycle_stage: active
+run_id: f9e4aaa98de24991a1ef9990656aabf8
+run_name: trial_001
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1774429818528
+status: 3
+tags: []
+user_id: vladislav
