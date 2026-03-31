@@ -18,12 +18,3 @@ def find_latest_train_folder(runs_dir: str = "runs/detect"):
     latest_folder = max(folders, key=lambda f: f.stat().st_ctime)
 
     return str(latest_folder)
-
-
-if __name__ == "__main__":
-    #Path("runs/detect/train10").mkdir(parents=True, exist_ok=True)
-    #Path("runs/detect/train11").mkdir(parents=True, exist_ok=True)
-    #Path("runs/detect/train12").mkdir(parents=True, exist_ok=True)
-
-    latest = find_latest_train_folder()
-    print(f"Последняя созданная директория: {latest}")
