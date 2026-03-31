@@ -1,5 +1,4 @@
 #Task 1.2.3
-#запуск из корня: python app/core/artifact_finder.py
 
 from pathlib import Path
 
