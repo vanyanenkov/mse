@@ -1245,15 +1245,14 @@ async function renderDatasetsPage() {
               ? `
                 <div class="stack">
                   ${state.datasets
-                    .map(
-                      (dataset) => `
-                        <article class="dataset-card">
+                    .map((dataset) => {
+                      const isActive = String(dataset.id) === String(activeId);
+                      return `
+                        <article class="dataset-card${isActive ? ' dataset-card--active' : ''}">
                           <div class="dataset-card-header">
                             <div>
                               <div class="dataset-name">${escapeHtml(dataset.name || "Без названия")}</div>
-                              <div class="dataset-meta">
-
-                              </div>
+                              <div class="dataset-meta"></div>
                             </div>
                             ${renderStatus(dataset.status || "ready")}
                           </div>
@@ -1265,13 +1264,15 @@ async function renderDatasetsPage() {
                           </div>
 
                           <div class="form-actions" style="margin-top:14px;">
-                            <button class="btn btn-secondary dataset-switch-btn" type="button" data-dataset-id="${escapeHtml(
-                              dataset.id
-                            )}">Выбрать</button>
+                            <button
+                              class="btn ${isActive ? 'btn-primary' : 'btn-secondary'} dataset-switch-btn"
+                              type="button"
+                              data-dataset-id="${escapeHtml(dataset.id)}"
+                            >${isActive ? '✓ Выбран' : 'Выбрать'}</button>
                           </div>
                         </article>
-                      `
-                    )
+                      `;
+                    })
                     .join("")}
                 </div>
               `
@@ -1747,6 +1748,15 @@ async function renderDatasetsPage() {
     updateBlocksVisibility();
     toggleInput.addEventListener('change', updateBlocksVisibility);
   }
+
+  // Обработчик кнопок "Выбрать" в списке датасетов
+  qsa(".dataset-switch-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      state.activeDatasetId = btn.dataset.datasetId;
+      state.compareDatasetId = btn.dataset.datasetId;
+      await renderDatasetsPage();
+    });
+  });
 
   qs("#datasetRunsTable")?.addEventListener("click", (event) => {
   const row = event.target.closest("tr[data-run-id]");
