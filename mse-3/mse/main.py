@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from itertools import count
 from pathlib import Path
 from typing import Any, Optional
+import json
 import os
 import shutil
 import zipfile
@@ -20,7 +21,7 @@ from app.core.label_validator import validate_label_file
 from app.core.orc import AutoMLOrchestrator
 from app.core.random_search_combinations import random_search_params
 from app.core.training_results import read_training_history
-from app.core.tpe_optimizer import TPEOptimizer
+from app.core.tpe_optimizer import STUDY_STORAGE_URI, TPEOptimizer, optuna as optuna_module
 
 try:
     import torch
@@ -53,6 +54,7 @@ RUNS_DIR = resolve_project_path(os.getenv("RUNS_DIR", "runs"))
 UPLOADS_DIR = resolve_project_path(os.getenv("UPLOADS_DIR", "uploads"))
 DATASETS_DIR = resolve_project_path(os.getenv("DATASETS_DIR", "datasets"))
 STATUS_MANAGER = StatusManager(os.getenv("STATUS_FILE", str(RUNS_DIR / "status.json")))
+APP_STATE_FILE = RUNS_DIR / "frontend_state.json"
 
 
 def parse_allowed_origins() -> list[str]:
@@ -147,6 +149,89 @@ def parse_trial_count(value: Any, default: int = 10) -> int:
 
     parsed = int(str(value).strip())
     return max(1, parsed)
+
+
+def extract_numeric_suffix(value: Any, prefix: str) -> Optional[int]:
+    text = str(value or "").strip()
+    if not text.startswith(prefix):
+        return None
+
+    suffix = text[len(prefix):]
+    return int(suffix) if suffix.isdigit() else None
+
+
+def sync_id_counters_from_state() -> None:
+    global DATASET_ID_COUNTER, RUN_ID_COUNTER
+
+    dataset_numbers = [
+        number
+        for number in (
+            extract_numeric_suffix(item.get("id"), "ds-")
+            for item in DATASET_DETAILS.values()
+        )
+        if number is not None
+    ]
+    run_numbers = [
+        number
+        for number in (
+            extract_numeric_suffix(item.get("id"), "run-")
+            for item in RUN_DETAILS.values()
+        )
+        if number is not None
+    ]
+
+    DATASET_ID_COUNTER = count((max(dataset_numbers, default=0) + 1))
+    RUN_ID_COUNTER = count((max(run_numbers, default=0) + 1))
+
+
+def persist_runtime_state() -> None:
+    payload = {
+        "datasets": DATASETS,
+        "datasetDetails": DATASET_DETAILS,
+        "runs": RUNS,
+        "runDetails": RUN_DETAILS,
+        "runLogs": RUN_LOGS,
+        "updatedAt": now_iso(),
+    }
+
+    try:
+        APP_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        APP_STATE_FILE.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+    except OSError as exc:
+        print(f"Failed to persist frontend state: {exc}")
+
+
+def load_runtime_state() -> None:
+    if not APP_STATE_FILE.exists():
+        sync_id_counters_from_state()
+        return
+
+    try:
+        payload = json.loads(APP_STATE_FILE.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"Failed to load frontend state: {exc}")
+        sync_id_counters_from_state()
+        return
+
+    DATASETS.clear()
+    DATASETS.extend(payload.get("datasets") or [])
+
+    DATASET_DETAILS.clear()
+    DATASET_DETAILS.update(payload.get("datasetDetails") or {})
+
+    RUNS.clear()
+    RUNS.extend(payload.get("runs") or [])
+
+    RUN_DETAILS.clear()
+    RUN_DETAILS.update(payload.get("runDetails") or {})
+
+    RUN_LOGS.clear()
+    RUN_LOGS.update(payload.get("runLogs") or {})
+
+    sync_id_counters_from_state()
 
 def safe_update_global_status(**updates: Any) -> dict[str, Any]:
     try:
@@ -851,9 +936,11 @@ def refresh_dataset_summary(dataset_id: str) -> None:
     for index, item in enumerate(DATASETS):
         if item["id"] == dataset_id:
             DATASETS[index] = summary
+            persist_runtime_state()
             return
 
     DATASETS.append(summary)
+    persist_runtime_state()
 
 
 def get_dataset_or_404(dataset_id: str) -> dict[str, Any]:
@@ -939,6 +1026,7 @@ def build_empty_run_detail(
 
         "bestParams": {},
         "trialCount": None,
+        "studyName": run_id if normalize_search_algorithm(search_alg) == "OptunaTPE" else None,
 
         "notes": notes,
         "errorMessage": None,
@@ -1135,9 +1223,11 @@ def refresh_run_summary(run_id: str) -> None:
     for index, item in enumerate(RUNS):
         if item["id"] == run_id:
             RUNS[index] = summary
+            persist_runtime_state()
             return
 
     RUNS.insert(0, summary)
+    persist_runtime_state()
 
 
 def model_score(model: dict[str, Any]) -> float:
@@ -1790,7 +1880,7 @@ def run_training_task(
                 n_trials=trial_count,
                 fixed_params=fixed_params,
                 study_name=run_id,
-                reset_storage=True,
+                reset_storage=False,
             )
             result = optimization_result["results"]
         else:
@@ -1898,6 +1988,65 @@ def append_to_run_log(run_id: str, message: str):
     else:
         RUN_LOGS[run_id] = new_entry
 
+    persist_runtime_state()
+
+
+def get_optuna_trials_for_run(run_id: str) -> dict[str, Any]:
+    if optuna_module is None:
+        raise HTTPException(status_code=503, detail="Optuna is not available in this environment")
+
+    run_detail = get_run_or_404(run_id)
+    if run_detail.get("searchAlgorithm") != "OptunaTPE":
+        return {
+            "runId": run_id,
+            "searchAlgorithm": run_detail.get("searchAlgorithm"),
+            "studyName": None,
+            "bestTrial": None,
+            "trials": [],
+        }
+
+    try:
+        study = optuna_module.load_study(study_name=run_id, storage=STUDY_STORAGE_URI)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"Optuna study for run '{run_id}' was not found") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to read Optuna study: {exc}") from exc
+
+    trials: list[dict[str, Any]] = []
+    best_trial = None
+
+    for trial in study.trials:
+        trial_payload = {
+            "number": trial.number,
+            "state": getattr(trial.state, "name", str(trial.state)),
+            "value": trial.value,
+            "params": trial.params,
+            "userAttrs": dict(trial.user_attrs or {}),
+            "intermediateValues": {
+                str(step): value
+                for step, value in sorted((trial.intermediate_values or {}).items())
+            },
+            "datetimeStart": trial.datetime_start.isoformat() if trial.datetime_start else None,
+            "datetimeComplete": trial.datetime_complete.isoformat() if trial.datetime_complete else None,
+        }
+        trials.append(trial_payload)
+
+    if study.best_trial is not None:
+        best_trial = {
+            "number": study.best_trial.number,
+            "value": study.best_trial.value,
+            "params": dict(study.best_trial.params or {}),
+        }
+
+    return {
+        "runId": run_id,
+        "searchAlgorithm": run_detail.get("searchAlgorithm"),
+        "studyName": study.study_name,
+        "bestTrial": best_trial,
+        "trialCount": len(trials),
+        "trials": trials,
+    }
+
 
 @app.get("/api/runs")
 async def get_runs():
@@ -1907,6 +2056,11 @@ async def get_runs():
 @app.get("/api/runs/{run_id}")
 async def get_run(run_id: str):
     return get_run_or_404(run_id)
+
+
+@app.get("/api/runs/{run_id}/trials")
+async def get_run_trials(run_id: str):
+    return get_optuna_trials_for_run(run_id)
 
 
 @app.get("/api/runs/{run_id}/logs", response_class=PlainTextResponse)
@@ -1925,17 +2079,39 @@ async def export_run(run_id: str, format: Optional[str] = "json"):
     return JSONResponse(detail)
 
 
+##------
+@app.get("/api/datasets/{dataset_id}/runs")
+async def get_dataset_runs(dataset_id: str):
+    dataset_runs = [run for run in RUNS if run.get("datasetId") == dataset_id]
+    return dataset_runs
+
+@app.get("/api/runs/{run_id}/metrics")
+async def get_run_metrics(run_id: str):
+    detail = get_run_or_404(run_id)
+    return {
+        "id": detail["id"],
+        "datasetName": detail.get("datasetName"),
+        "status": detail.get("status"),
+        "summary": detail.get("summary", {}),
+        "models": detail.get("models", []),
+        "hyperparams": detail.get("hyperparams", {}),
+        "device": detail.get("device"),
+        "searchAlgorithm": detail.get("searchAlgorithm"),
+        "startedAt": detail.get("startedAt"),
+        "finishedAt": detail.get("finishedAt"),
+    }
+
 @app.post("/api/start")
 async def start_automl(background_tasks: BackgroundTasks):
     background_tasks.add_task(run_automl)
     return {"message": "AutoML process started", "status": "200"}
 
 
-# Create necessary directories
 RUNS_DIR.mkdir(parents=True, exist_ok=True)
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 DATASETS_DIR.mkdir(parents=True, exist_ok=True)
 (UPLOADS_DIR / "datasets").mkdir(parents=True, exist_ok=True)
+load_runtime_state()
 
 if not STATUS_MANAGER.status_file.exists():
     safe_update_global_status(
@@ -1948,7 +2124,6 @@ if not STATUS_MANAGER.status_file.exists():
         error=None,
     )
 
-# Mount static files
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 app.mount("/runs", StaticFiles(directory=str(RUNS_DIR)), name="runs")
 app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static-root")
