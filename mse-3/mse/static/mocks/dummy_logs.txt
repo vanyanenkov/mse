@@ -1,0 +1,17 @@
+Epoch 1/10: train_loss=2.345, val_loss=3.456, mAP50=0.123
+Epoch 1/10: learning_rate=0.01, batch_size=16
+Epoch 1/10: saving checkpoint to runs/automl/trial_1
+--------------------------------------------------
+Epoch 2/10: train_loss=1.987, val_loss=2.654, mAP50=0.234
+Epoch 2/10: best model updated (mAP50=0.234)
+Epoch 2/10: learning_rate=0.009, batch_size=16
+--------------------------------------------------
+Epoch 3/10: train_loss=1.654, val_loss=2.123, mAP50=0.345
+Epoch 3/10: learning_rate=0.008, batch_size=16
+Epoch 3/10: saving checkpoint to runs/automl/trial_3
+--------------------------------------------------
+Epoch 4/10: train_loss=1.432, val_loss=1.987, mAP50=0.456
+Epoch 4/10: best model updated (mAP50=0.456)
+--------------------------------------------------
+Epoch 5/10: train_loss=1.234, val_loss=1.876, mAP50=0.567
+Epoch 5/10: learning_rate=0.007, batch_size=16

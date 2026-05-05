@@ -1,0 +1,20 @@
+{
+  "current_model": 1,
+  "total_models": 1,
+  "status": "completed",
+  "current_config": {
+    "epochs": 1,
+    "data": "C:\\Users\\User\\PycharmProjects\\mse\\uploads\\datasets\\ds-3_extracted\\coco8\\data.yaml",
+    "device": "cpu"
+  },
+  "best_result": {
+    "trial": 0,
+    "config": {
+      "epochs": 1,
+      "data": "C:\\Users\\User\\PycharmProjects\\mse\\uploads\\datasets\\ds-3_extracted\\coco8\\data.yaml",
+      "device": "cpu"
+    },
+    "score": 0,
+    "model_path": "runs\\detect\\automl\\trial_003\\weights\\best.pt"
+  }
+}
